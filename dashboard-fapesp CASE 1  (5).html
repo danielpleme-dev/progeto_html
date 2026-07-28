@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard FAPESP - Ecossistema de Inovação</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        :root {
+            --fapesp-blue: #003399;
+            --fapesp-light-blue: #00AEEF;
+            --fapesp-green: #00A651;
+            --fapesp-yellow: #FFF200;
+            --fapesp-red: #ED1C24;
+            --fapesp-purple: #92278F;
+            --bg-gray: #F4F7F6;
+            --card-shadow: 0 8px 16px -2px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gray) 0%, #E8F0F7 100%);
+            color: #1F2937;
+            min-height: 100vh;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            padding: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px -4px rgba(0, 0, 0, 0.12);
+        }
+
+        .sidebar {
+            background: linear-gradient(135deg, var(--fapesp-blue) 0%, #001f5c 100%);
+            color: white;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .kpi-icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .table-header {
+            background: linear-gradient(to right, #f8fafc, #f1f5f9);
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+
+        .status-badge:hover {
+            transform: scale(1.05);
+        }
+
+        .status-approved {
+            background-color: #D1FAE5;
+            color: #065F46;
+        }
+
+        .status-pending {
+            background-color: #FEF3C7;
+            color: #92400E;
+        }
+
+        .status-active {
+            background-color: #DBEAFE;
+            color: #0C4A6E;
+        }
+
+        .trending-up {
+            color: #10B981;
+            font-weight: 600;
+        }
+
+        .trending-down {
+            color: #EF4444;
+            font-weight: 600;
+        }
+
+        .nav-link {
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 3px;
+            background-color: var(--fapesp-light-blue);
+            transition: width 0.3s;
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--fapesp-blue);
+            background: #f3f4f6;
+        }
+
+        .filter-btn.active {
+            background: var(--fapesp-blue);
+            color: white;
+            border-color: var(--fapesp-blue);
+        }
+
+        .search-input {
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--fapesp-blue);
+            box-shadow: 0 0 0 3px rgba(0, 51, 153, 0.1);
+        }
+
+        .metric-box {
+            background: linear-gradient(135deg, rgba(0, 51, 153, 0.05) 0%, rgba(0, 174, 239, 0.05) 100%);
+            border-left: 4px solid var(--fapesp-blue);
+            padding: 1rem;
+            border-radius: 8px;
+        }
+
+        .region-card {
+            background: white;
+            border-radius: 12px;
+            padding: 1.25rem;
+            border-left: 5px solid;
+            transition: all 0.3s;
+        }
+
+        .region-card:hover {
+            transform: translateX(4px);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .header-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--fapesp-light-blue), var(--fapesp-blue));
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .scroll-table {
+            overflow-x: auto;
+        }
+
+        .scroll-table::-webkit-scrollbar {
+            height: 6px;
+        }
+
+        .scroll-table::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+        }
+
+        .scroll-table::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+        }
+
+        .scroll-table::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            }
+
+            .kpi-icon {
+                width: 48px;
+                height: 48px;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body class="flex flex-col md:flex-row min-h-screen">
+
+    <!-- Sidebar -->
+    <aside class="sidebar w-full md:w-72 p-6 space-y-8 overflow-y-auto">
+        <div class="flex items-center space-x-3">
+            <div class="w-12 h-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur">
+                <span class="text-white font-bold text-2xl">F</span>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-tight">FAPESP</h1>
+                <p class="text-xs text-white/60">Inovação</p>
+            </div>
+        </div>
+        
+        <nav class="space-y-1">
+            <a href="#" class="nav-link block py-3 px-4 rounded-lg transition duration-200 bg-white/15 hover:bg-white/20 text-white font-500">
+                <span class="flex items-center space-x-3">
+                    <span>📊</span>
+                    <span>Visão Geral</span>
+                </span>
+            </a>
+            <a href="#" class="nav-link block py-3 px-4 rounded-lg transition duration-200 hover:bg-white/10 text-white/90 font-500">
+                <span class="flex items-center space-x-3">
+                    <span>🏢</span>
+                    <span>Empresas</span>
+                </span>
+            </a>
+            <a href="#" class="nav-link block py-3 px-4 rounded-lg transition duration-200 hover:bg-white/10 text-white/90 font-500">
+                <span class="flex items-center space-x-3">
+                    <span>📍</span>
+                    <span>Polos Regionais</span>
+                </span>
+            </a>
+            <a href="#" class="nav-link block py-3 px-4 rounded-lg transition duration-200 hover:bg-white/10 text-white/90 font-500">
+                <span class="flex items-center space-x-3">
+                    <span>🔬</span>
+                    <span>Áreas de Conhecimento</span>
+                </span>
+            </a>
+            <a href="#" class="nav-link block py-3 px-4 rounded-lg transition duration-200 hover:bg-white/10 text-white/90 font-500">
+                <span class="flex items-center space-x-3">
+                    <span>📈</span>
+                    <span>Relatórios</span>
+                </span>
+            </a>
+        </nav>
+
+        <div class="pt-8 mt-8 border-t border-white/20">
+            <p class="text-xs uppercase text-white/50 font-semibold mb-4">Configurações</p>
+            <a href="#" class="block py-2 px-4 text-sm hover:text-white/80 transition text-white/70">📥 Exportar PDF</a>
+            <a href="#" class="block py-2 px-4 text-sm hover:text-white/80 transition text-white/70">⚙️ Preferências</a>
+            <a href="#" class="block py-2 px-4 text-sm hover:text-white/80 transition text-white/70">❓ Suporte</a>
+        </div>
+
+        <div class="pt-4 border-t border-white/20">
+            <p class="text-xs text-white/50">Última atualização: Jun 2026</p>
+        </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-4 md:p-8 overflow-y-auto">
+        <!-- Header -->
+        <header class="mb-8 fade-in">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <div class="header-badge">📊 Dashboard Executivo</div>
+                    <h2 class="text-4xl font-bold text-gray-900">Ecossistema de Inovação</h2>
+                    <p class="text-gray-600 mt-2">Análise integrada de empresas, processos e polos tecnológicos FAPESP</p>
+                </div>
+                <div class="flex flex-col items-end gap-3">
+                    <div class="text-right">
+                        <p class="text-sm text-gray-500">Última atualização</p>
+                        <p class="text-lg font-semibold text-gray-900">Jun 15, 2026</p>
+                    </div>
+                    <button class="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-2 rounded-lg hover:shadow-lg transition transform hover:scale-105 font-600">
+                        📥 Exportar PDF
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 fade-in">
+            <div class="card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Total de Empresas</p>
+                        <h3 class="text-3xl font-bold text-gray-900 mt-2">10</h3>
+                        <p class="text-xs trending-up mt-2">▲ 20% vs. trimestre anterior</p>
+                    </div>
+                    <div class="kpi-icon bg-gradient-to-br from-blue-100 to-blue-200 text-blue-600">
+                        🏢
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Processos Ativos</p>
+                        <h3 class="text-3xl font-bold text-gray-900 mt-2">14</h3>
+                        <p class="text-xs trending-up mt-2">▲ 3 novos este mês</p>
+                    </div>
+                    <div class="kpi-icon bg-gradient-to-br from-green-100 to-green-200 text-green-600">
+                        ✓
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Polos Regionais</p>
+                        <h3 class="text-3xl font-bold text-gray-900 mt-2">5</h3>
+                        <p class="text-xs text-gray-600 mt-2">Principais cidades</p>
+                    </div>
+                    <div class="kpi-icon bg-gradient-to-br from-purple-100 to-purple-200 text-purple-600">
+                        📍
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-gray-500 font-medium">Auxílio PIPE</p>
+                        <h3 class="text-3xl font-bold text-gray-900 mt-2">R$ 2.8M</h3>
+                        <p class="text-xs trending-up mt-2">▲ 15% vs. ano anterior</p>
+                    </div>
+                    <div class="kpi-icon bg-gradient-to-br from-yellow-100 to-yellow-200 text-yellow-600">
+                        💰
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 fade-in">
+            <div class="card">
+                <h4 class="text-lg font-semibold text-gray-900 mb-4">Processos por Empresa</h4>
+                <div class="chart-container">
+                    <canvas id="processosChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h4 class="text-lg font-semibold text-gray-900 mb-4">Distribuição de Áreas (FAPESP)</h4>
+                <div class="chart-container">
+                    <canvas id="areasChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Charts Row -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8 fade-in">
+            <div class="card">
+                <h4 class="text-lg font-semibold text-gray-900 mb-4">Evolução de Processos (6 meses)</h4>
+                <div class="chart-container">
+                    <canvas id="evoluacaoChart"></canvas>
+                </div>
+            </div>
+            <div class="card">
+                <h4 class="text-lg font-semibold text-gray-900 mb-4">Comparação por Área</h4>
+                <div class="chart-container">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Polos Description -->
+        <div class="card mb-8 fade-in">
+            <h4 class="text-lg font-semibold text-gray-900 mb-4">Polos Tecnológicos Integrados</h4>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="region-card border-blue-600 bg-blue-50/50">
+                    <h5 class="font-bold text-blue-900 text-lg">São Paulo (RMSB)</h5>
+                    <p class="text-sm text-blue-800 mt-2">🏙️ Maior concentração com > 400 empresas</p>
+                    <p class="text-xs text-blue-700 mt-1">Destaque para SBC e São Caetano do Sul</p>
+                </div>
+                <div class="region-card border-green-600 bg-green-50/50">
+                    <h5 class="font-bold text-green-900 text-lg">Campinas</h5>
+                    <p class="text-sm text-green-800 mt-2">🎓 > 200 empresas vinculadas</p>
+                    <p class="text-xs text-green-700 mt-1">Unicamp e Parque Tecnológico</p>
+                </div>
+                <div class="region-card border-purple-600 bg-purple-50/50">
+                    <h5 class="font-bold text-purple-900 text-lg">São José dos Campos</h5>
+                    <p class="text-sm text-purple-800 mt-2">✈️ Polo aeroespacial com > 100 empresas</p>
+                    <p class="text-xs text-purple-700 mt-1">Foco em tecnologia avançada</p>
+                </div>
+                <div class="region-card border-red-600 bg-red-50/50">
+                    <h5 class="font-bold text-red-900 text-lg">Ribeirão Preto</h5>
+                    <p class="text-sm text-red-800 mt-2">🔬 Polo de Biotecnologia</p>
+                    <p class="text-xs text-red-700 mt-1">7 empresas com Auxílio PIPE ativo</p>
+                </div>
+                <div class="region-card border-indigo-600 bg-indigo-50/50">
+                    <h5 class="font-bold text-indigo-900 text-lg">Piracicaba</h5>
+                    <p class="text-sm text-indigo-800 mt-2">🌱 Agronegócio e Sustentabilidade</p>
+                    <p class="text-xs text-indigo-700 mt-1">Crescimento de 25% ao ano</p>
+                </div>
+                <div class="region-card border-orange-600 bg-orange-50/50">
+                    <h5 class="font-bold text-orange-900 text-lg">Sorocaba</h5>
+                    <p class="text-sm text-orange-800 mt-2">⚙️ Manufatura Avançada</p>
+                    <p class="text-xs text-orange-700 mt-1">Indústria 4.0 e IoT</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empresas Table -->
+        <div class="card mb-8 fade-in">
+            <div class="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+                <div>
+                    <h4 class="text-lg font-semibold text-gray-900">Empresas com Auxílio PIPE</h4>
+                    <p class="text-sm text-gray-500 mt-1">Listagem completa de empresas participantes</p>
+                </div>
+                <div class="flex gap-2 flex-wrap">
+                    <button class="filter-btn active" onclick="filterTable('todos')">Todos (12)</button>
+                    <button class="filter-btn" onclick="filterTable('aprovado')">✓ Aprovado (10)</button>
+                    <button class="filter-btn" onclick="filterTable('pendente')">⏳ Pendente (2)</button>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <input type="text" class="search-input w-full" id="searchInput" placeholder="🔍 Buscar empresa ou especialidade..." onkeyup="searchTable()">
+            </div>
+
+            <div class="scroll-table">
+                <table class="w-full text-left text-sm" id="empresasTable">
+                    <thead class="table-header sticky top-0">
+                        <tr>
+                            <th class="px-4 py-3 font-semibold text-gray-700">Empresa</th>
+                            <th class="px-4 py-3 font-semibold text-gray-700">Especialidade / Foco</th>
+                            <th class="px-4 py-3 font-semibold text-gray-700">Região</th>
+                            <th class="px-4 py-3 font-semibold text-gray-700">Status</th>
+                            <th class="px-4 py-3 font-semibold text-gray-700">Valor PIPE</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">Onkos Biotecnologia</td>
+                            <td class="px-4 py-4 text-gray-600">Biologia molecular e diagnósticos de câncer</td>
+                            <td class="px-4 py-4 text-gray-600">Ribeirão Preto</td>
+                            <td class="px-4 py-4"><span class="status-badge status-approved">✓ Aprovado</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 250K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">InSitu Biotecnologia</td>
+                            <td class="px-4 py-4 text-gray-600">Biomateriais e engenharia de tecidos</td>
+                            <td class="px-4 py-4 text-gray-600">Ribeirão Preto</td>
+                            <td class="px-4 py-4"><span class="status-badge status-approved">✓ Aprovado</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 280K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">Living Out Saúde</td>
+                            <td class="px-4 py-4 text-gray-600">Tecnologias Assistivas</td>
+                            <td class="px-4 py-4 text-gray-600">Ribeirão Preto</td>
+                            <td class="px-4 py-4"><span class="status-badge status-approved">✓ Aprovado</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 200K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">Kimera Saúde</td>
+                            <td class="px-4 py-4 text-gray-600">Biotecnologia e Farmacêutica</td>
+                            <td class="px-4 py-4 text-gray-600">Ribeirão Preto</td>
+                            <td class="px-4 py-4"><span class="status-badge status-approved">✓ Aprovado</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 320K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">Verdatis</td>
+                            <td class="px-4 py-4 text-gray-600">Biotecnologia e Meio Ambiente</td>
+                            <td class="px-4 py-4 text-gray-600">Ribeirão Preto</td>
+                            <td class="px-4 py-4"><span class="status-badge status-approved">✓ Aprovado</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 215K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">TechBio Solutions</td>
+                            <td class="px-4 py-4 text-gray-600">Bioinformática e IA em Saúde</td>
+                            <td class="px-4 py-4 text-gray-600">São Paulo</td>
+                            <td class="px-4 py-4"><span class="status-badge status-approved">✓ Aprovado</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 380K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">NanoMed Devices</td>
+                            <td class="px-4 py-4 text-gray-600">Nanotecnologia em Medicina</td>
+                            <td class="px-4 py-4 text-gray-600">Campinas</td>
+                            <td class="px-4 py-4"><span class="status-badge status-approved">✓ Aprovado</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 450K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">AgroTech Inovação</td>
+                            <td class="px-4 py-4 text-gray-600">Agricultura de Precisão</td>
+                            <td class="px-4 py-4 text-gray-600">Piracicaba</td>
+                            <td class="px-4 py-4"><span class="status-badge status-approved">✓ Aprovado</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 310K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">Aero Dynamics</td>
+                            <td class="px-4 py-4 text-gray-600">Materiais Compostos Aeroespaciais</td>
+                            <td class="px-4 py-4 text-gray-600">São José dos Campos</td>
+                            <td class="px-4 py-4"><span class="status-badge status-pending">⏳ Pendente</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 520K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">Smart Manufacturing</td>
+                            <td class="px-4 py-4 text-gray-600">Indústria 4.0 e IoT</td>
+                            <td class="px-4 py-4 text-gray-600">Sorocaba</td>
+                            <td class="px-4 py-4"><span class="status-badge status-pending">⏳ Pendente</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 420K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">Quantum Computing BR</td>
+                            <td class="px-4 py-4 text-gray-600">Computação Quântica</td>
+                            <td class="px-4 py-4 text-gray-600">São Paulo</td>
+                            <td class="px-4 py-4"><span class="status-badge status-approved">✓ Aprovado</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 680K</td>
+                        </tr>
+                        <tr class="hover:bg-gray-50 transition">
+                            <td class="px-4 py-4 font-medium text-gray-900">EcoTech Soluções</td>
+                            <td class="px-4 py-4 text-gray-600">Tecnologia Ambiental Sustentável</td>
+                            <td class="px-4 py-4 text-gray-600">Campinas</td>
+                            <td class="px-4 py-4"><span class="status-badge status-active">● Ativo</span></td>
+                            <td class="px-4 py-4 font-semibold text-gray-900">R$ 350K</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Metrics Summary -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 fade-in">
+            <div class="metric-box">
+                <p class="text-sm text-gray-600 font-medium">Taxa de Aprovação</p>
+                <p class="text-2xl font-bold text-gray-900 mt-2">83.3%</p>
+                <p class="text-xs text-gray-500 mt-1">10 de 12 empresas aprovadas</p>
+            </div>
+            <div class="metric-box">
+                <p class="text-sm text-gray-600 font-medium">Investimento Total PIPE</p>
+                <p class="text-2xl font-bold text-gray-900 mt-2">R$ 4.2M</p>
+                <p class="text-xs text-gray-500 mt-1">Distribuído entre 12 empresas</p>
+            </div>
+            <div class="metric-box">
+                <p class="text-sm text-gray-600 font-medium">Média por Empresa</p>
+                <p class="text-2xl font-bold text-gray-900 mt-2">R$ 350K</p>
+                <p class="text-xs text-gray-500 mt-1">Investimento médio por projeto</p>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // Cores baseadas no padrão FAPESP
+        const colors = {
+            blue: '#003399',
+            lightBlue: '#00AEEF',
+            green: '#00A651',
+            yellow: '#FFF200',
+            red: '#ED1C24',
+            purple: '#92278F',
+            orange: '#FF8C00',
+            indigo: '#4F46E5'
+        };
+
+        const chartOptions = {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        font: { family: "'Inter', sans-serif", size: 12, weight: 500 },
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            }
+        };
+
+        // Gráfico de Processos por Empresa
+        const ctxProcessos = document.getElementById('processosChart').getContext('2d');
+        new Chart(ctxProcessos, {
+            type: 'bar',
+            data: {
+                labels: ['3D Bioeng', '3D Pharma', '3DSoft', '3DTime', '3FS', '3HM', '3T Biopol', '3TCOM', '45.993', '46.375'],
+                datasets: [{
+                    label: 'Quantidade de Processos',
+                    data: [1, 2, 1, 1, 1, 1, 2, 2, 2, 1],
+                    backgroundColor: colors.blue,
+                    borderRadius: 8,
+                    borderSkipped: false
+                }]
+            },
+            options: {
+                ...chartOptions,
+                scales: {
+                    y: { beginAtZero: true, max: 3, ticks: { font: { family: "'Inter', sans-serif" } } },
+                    x: { ticks: { font: { family: "'Inter', sans-serif", size: 11 } } }
+                }
+            }
+        });
+
+        // Gráfico de Áreas de Conhecimento
+        const ctxAreas = document.getElementById('areasChart').getContext('2d');
+        new Chart(ctxAreas, {
+            type: 'doughnut',
+            data: {
+                labels: ['Exatas', 'Biológicas', 'Agrárias', 'Saúde'],
+                datasets: [{
+                    data: [9, 14, 8, 11],
+                    backgroundColor: [colors.green, colors.blue, colors.yellow, colors.red],
+                    borderColor: ['white', 'white', 'white', 'white'],
+                    borderWidth: 3,
+                    hoverOffset: 8
+                }]
+            },
+            options: {
+                ...chartOptions,
+                plugins: {
+                    ...chartOptions.plugins,
+                    legend: { position: 'bottom', ...chartOptions.plugins.legend }
+                }
+            }
+        });
+
+        // Gráfico de Evolução (Linha)
+        const ctxEvolucao = document.getElementById('evoluacaoChart').getContext('2d');
+        new Chart(ctxEvolucao, {
+            type: 'line',
+            data: {
+                labels: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho'],
+                datasets: [{
+                    label: 'Processos Ativos',
+                    data: [8, 9, 10, 11, 13, 14],
+                    borderColor: colors.blue,
+                    backgroundColor: 'rgba(0, 51, 153, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 5,
+                    pointBackgroundColor: colors.blue,
+                    pointBorderColor: 'white',
+                    pointBorderWidth: 2
+                }]
+            },
+            options: {
+                ...chartOptions,
+                scales: {
+                    y: { beginAtZero: true, max: 16, ticks: { font: { family: "'Inter', sans-serif" } } },
+                    x: { ticks: { font: { family: "'Inter', sans-serif" } } }
+                }
+            }
+        });
+
+        // Gráfico Radar
+        const ctxRadar = document.getElementById('radarChart').getContext('2d');
+        new Chart(ctxRadar, {
+            type: 'radar',
+            data: {
+                labels: ['Exatas', 'Biológicas', 'Agrárias', 'Saúde', 'Humanas'],
+                datasets: [{
+                    label: 'Processos por Área',
+                    data: [9, 14, 8, 11, 5],
+                    borderColor: colors.blue,
+                    backgroundColor: 'rgba(0, 51, 153, 0.2)',
+                    borderWidth: 2,
+                    pointBackgroundColor: colors.blue,
+                    pointBorderColor: 'white',
+                    pointBorderWidth: 2,
+                    pointRadius: 5
+                }]
+            },
+            options: {
+                ...chartOptions,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        max: 16,
+                        ticks: { font: { family: "'Inter', sans-serif" } }
+                    }
+                }
+            }
+        });
+
+        // Funções de Filtro e Busca
+        function filterTable(status) {
+            const table = document.getElementById('empresasTable');
+            const rows = table.getElementsByTagName('tr');
+            
+            // Atualizar botões
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Filtrar linhas
+            for (let i = 1; i < rows.length; i++) {
+                const statusCell = rows[i].getElementsByTagName('td')[3];
+                const statusText = statusCell.textContent.toLowerCase();
+
+                if (status === 'todos') {
+                    rows[i].style.display = '';
+                } else if (status === 'aprovado' && statusText.includes('aprovado')) {
+                    rows[i].style.display = '';
+                } else if (status === 'pendente' && statusText.includes('pendente')) {
+                    rows[i].style.display = '';
+                } else {
+                    rows[i].style.display = 'none';
+                }
+            }
+        }
+
+        function searchTable() {
+            const input = document.getElementById('searchInput');
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById('empresasTable');
+            const rows = table.getElementsByTagName('tr');
+
+            for (let i = 1; i < rows.length; i++) {
+                const cells = rows[i].getElementsByTagName('td');
+                let found = false;
+
+                for (let j = 0; j < cells.length - 1; j++) {
+                    if (cells[j].textContent.toUpperCase().indexOf(filter) > -1) {
+                        found = true;
+                        break;
+                    }
+                }
+
+                rows[i].style.display = found ? '' : 'none';
+            }
+        }
+    </script>
+</body>
+</html>
